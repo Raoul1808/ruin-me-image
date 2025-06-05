@@ -7,6 +7,8 @@ use std::{
 use image::{DynamicImage, ImageError};
 use thiserror::Error;
 
+use crate::commands::CommandQueue;
+
 struct Worker {
     handle: JoinHandle<()>,
     sender: Sender<WorkCommand>,
@@ -35,6 +37,10 @@ pub enum WorkerError {
 
 enum WorkCommand {
     LoadImage(PathBuf),
+    Render {
+        queue: CommandQueue,
+        img: DynamicImage,
+    },
 }
 
 fn image_worker(
@@ -47,6 +53,10 @@ fn image_worker(
                 WorkCommand::LoadImage(path) => {
                     let img = image::open(path).map_err(WorkerError::ImageError);
                     sender.send(img).unwrap();
+                }
+                WorkCommand::Render { mut queue, img } => {
+                    let img = queue.execute_clear(img);
+                    sender.send(Ok(img)).unwrap();
                 }
             },
             Err(_) => {
@@ -82,6 +92,13 @@ impl ImageWorker {
         self.worker()
             .sender
             .send(WorkCommand::LoadImage(path))
+            .expect("worker thread unexpectedly down!!");
+    }
+
+    pub fn request_render(&self, queue: CommandQueue, img: DynamicImage) {
+        self.worker()
+            .sender
+            .send(WorkCommand::Render { queue, img })
             .expect("worker thread unexpectedly down!!");
     }
 
