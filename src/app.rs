@@ -70,7 +70,7 @@ impl App for Application {
             if let Some((tex, _)) = self.img_tex.as_ref() {
                 ui.separator();
                 ui.label("Image preview");
-                Image::new(*tex).ui(ui);
+                Image::new(*tex).shrink_to_fit().ui(ui);
             }
         });
     }
