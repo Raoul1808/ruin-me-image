@@ -5,6 +5,7 @@ use eframe::{
 };
 
 mod app;
+mod worker;
 
 fn main() -> eframe::Result {
     let native_options = NativeOptions {
@@ -17,6 +18,6 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Ruin me image",
         native_options,
-        Box::new(|_cc| Ok(Box::new(Application::default()))),
+        Box::new(|_cc| Ok(Box::new(Application::new()))),
     )
 }

@@ -3,60 +3,83 @@ use std::path::PathBuf;
 use eframe::{
     App,
     egui::{
-        CentralPanel, ColorImage, Image, TextureHandle, TextureOptions, Widget, load::SizedTexture,
-        vec2,
+        self, CentralPanel, ColorImage, Image, TextureHandle, TextureOptions, Widget,
+        load::SizedTexture,
     },
 };
 use image::{DynamicImage, EncodableLayout};
 
-#[derive(Default)]
+use crate::worker::ImageWorker;
+
 pub struct Application {
+    worker: ImageWorker,
     path: Option<PathBuf>,
-    img_tex: Option<(SizedTexture, TextureHandle)>,
+    img: ImageLoadState,
+}
+
+impl Application {
+    pub fn new() -> Self {
+        Self {
+            worker: ImageWorker::new(),
+            path: None,
+            img: ImageLoadState::None,
+        }
+    }
+
+    fn update_image_state(&mut self, ctx: &egui::Context) {
+        if let Some(res) = self.worker.try_recv() {
+            match res {
+                Ok(img) => {
+                    let img = match img {
+                        DynamicImage::ImageRgb8(img) => ColorImage::from_rgb(
+                            [img.width() as usize, img.height() as usize],
+                            img.as_bytes(),
+                        ),
+                        other => {
+                            let img = other.to_rgba8();
+                            ColorImage::from_rgba_unmultiplied(
+                                [img.width() as usize, img.height() as usize],
+                                img.as_bytes(),
+                            )
+                        }
+                    };
+                    let handle = ctx.load_texture("preview", img, TextureOptions::default());
+                    let tex = SizedTexture::from_handle(&handle);
+                    self.img = ImageLoadState::Loaded { handle, tex }
+                }
+                Err(e) => {
+                    rfd::MessageDialog::new()
+                        .set_title("Image error")
+                        .set_level(rfd::MessageLevel::Error)
+                        .set_description(format!("{}", e));
+                }
+            }
+        }
+    }
+}
+
+enum ImageLoadState {
+    None,
+    Loading,
+    Loaded {
+        #[allow(dead_code)]
+        handle: TextureHandle,
+        tex: SizedTexture,
+    },
 }
 
 impl App for Application {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        self.update_image_state(ctx);
         CentralPanel::default().show(ctx, |ui| {
             ui.heading("Hello, image!");
             ui.horizontal(|ui| {
                 if ui.button("Browse").clicked() {
                     let file = rfd::FileDialog::new().set_title("Select image").pick_file();
                     if let Some(file) = file {
-                        match image::open(&file) {
-                            Ok(img) => {
-                                let img = match &img {
-                                    DynamicImage::ImageRgb8(image) => ColorImage::from_rgb(
-                                        [image.width() as usize, image.height() as usize],
-                                        image.as_bytes(),
-                                    ),
-                                    other => {
-                                        let image = other.to_rgba8();
-                                        ColorImage::from_rgba_unmultiplied(
-                                            [image.width() as usize, image.height() as usize],
-                                            image.as_bytes(),
-                                        )
-                                    }
-                                };
-                                let img_size = vec2(img.size[0] as f32, img.size[1] as f32);
-                                let handle =
-                                    ctx.load_texture("preview", img, TextureOptions::default());
-                                let sized_image = SizedTexture::new(handle.id(), img_size);
-                                self.img_tex = Some((sized_image, handle));
-                                self.path = Some(file);
-                            }
-                            Err(e) => {
-                                rfd::MessageDialog::new()
-                                    .set_title("Error loading image")
-                                    .set_level(rfd::MessageLevel::Error)
-                                    .set_description(format!(
-                                        "Error while loading {}: {}",
-                                        file.display(),
-                                        e
-                                    ))
-                                    .show();
-                            }
-                        }
+                        self.img = ImageLoadState::Loading;
+                        self.worker.request_image_load(file.clone());
+                        self.path = Some(file);
                     }
                 }
                 ui.label(format!(
@@ -67,10 +90,21 @@ impl App for Application {
                         .unwrap_or("None".into())
                 ))
             });
-            if let Some((tex, _)) = self.img_tex.as_ref() {
-                ui.separator();
-                ui.label("Image preview");
-                Image::new(*tex).shrink_to_fit().ui(ui);
+            ui.separator();
+            match &self.img {
+                ImageLoadState::None => {
+                    ui.label("Select an image to view");
+                }
+                ImageLoadState::Loading => {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label("Loading image...");
+                    });
+                }
+                ImageLoadState::Loaded { tex, .. } => {
+                    ui.label("Image preview");
+                    Image::new(*tex).shrink_to_fit().ui(ui);
+                }
             }
         });
     }
