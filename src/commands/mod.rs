@@ -41,7 +41,7 @@ impl CommandQueue {
                 .show_header(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.checkbox(&mut filter.enabled, "");
-                        ui.label(format!("{}. {}", i, filter.filter.name()))
+                        ui.label(format!("{}. {}", i + 1, filter.filter.name()))
                     });
                 })
                 .body(|ui| ui.add_enabled_ui(filter.enabled, |ui| filter.filter.ui(ui)));
