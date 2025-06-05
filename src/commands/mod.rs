@@ -34,6 +34,7 @@ impl CommandQueue {
                 });
             }
         });
+        let mut delete = vec![];
         for (i, filter) in self.queue.iter_mut().enumerate() {
             let id = Id::new(format!("Collapsing{}{}", filter.filter.name(), i));
             let state = CollapsingState::load_with_default_open(ui.ctx(), id, false);
@@ -41,10 +42,16 @@ impl CommandQueue {
                 .show_header(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.checkbox(&mut filter.enabled, "");
+                        if ui.button("🗑").clicked() {
+                            delete.push(i);
+                        }
                         ui.label(format!("{}. {}", i + 1, filter.filter.name()))
                     });
                 })
                 .body(|ui| ui.add_enabled_ui(filter.enabled, |ui| filter.filter.ui(ui)));
+        }
+        for i in delete.into_iter().rev() {
+            self.queue.remove(i);
         }
     }
 
