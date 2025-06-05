@@ -88,8 +88,10 @@ impl Application {
             let mut render_request = false;
             match &self.img {
                 ImageLoadState::None | ImageLoadState::Loading | ImageLoadState::Rendering => {
-                    ui.add_enabled(false, Button::new("Render"));
-                    ui.add_enabled(false, Button::new("Save current render"));
+                    ui.horizontal(|ui| {
+                        ui.add_enabled(false, Button::new("Render"));
+                        ui.add_enabled(false, Button::new("Save current render"));
+                    });
                 }
                 ImageLoadState::Loaded { img, .. } => {
                     let base_img = self
