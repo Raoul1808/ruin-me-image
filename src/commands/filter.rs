@@ -1,13 +1,14 @@
 use std::io::{BufWriter, Cursor};
 
 use eframe::egui::{
-    Slider, Ui, Widget,
+    DragValue, Slider, Ui, Widget,
     ecolor::{hsv_from_rgb, rgb_from_hsv},
 };
 use image::{
-    DynamicImage, GenericImage, GenericImageView, Rgba,
+    DynamicImage, GenericImage, GenericImageView, Pixel, Rgba,
     codecs::jpeg::{JpegDecoder, JpegEncoder},
 };
+use rand::{Rng, SeedableRng};
 
 #[derive(Debug, Clone)]
 pub enum ImageFilter {
@@ -17,6 +18,7 @@ pub enum ImageFilter {
     BoxBlur,
     GaussianBlur { sigma: f32 },
     Saturate { percentage: u16 },
+    Noise { strength: u8, seed: Option<u64> },
 }
 
 impl ImageFilter {
@@ -27,6 +29,10 @@ impl ImageFilter {
         Self::BoxBlur,
         Self::GaussianBlur { sigma: 2. },
         Self::Saturate { percentage: 100 },
+        Self::Noise {
+            strength: 10,
+            seed: None,
+        },
     ];
 
     pub const NAMES: &[&str] = &[
@@ -36,6 +42,7 @@ impl ImageFilter {
         "Box Blur",
         "Gaussian Blur",
         "Saturate",
+        "Noise",
     ];
 
     pub fn name(&self) -> &str {
@@ -46,6 +53,7 @@ impl ImageFilter {
             Self::BoxBlur => Self::NAMES[3],
             Self::GaussianBlur { .. } => Self::NAMES[4],
             Self::Saturate { .. } => Self::NAMES[5],
+            Self::Noise { .. } => Self::NAMES[6],
         }
     }
 
@@ -66,6 +74,23 @@ impl ImageFilter {
                 Slider::new(percentage, 0..=400)
                     .text("Saturation (%)")
                     .ui(ui);
+            }
+            Self::Noise { strength, seed } => {
+                let seed_number = seed.unwrap_or(rand::random());
+                ui.horizontal(|ui| {
+                    ui.radio_value(seed, None, "Random");
+                    ui.radio_value(seed, Some(seed_number), "Seeded");
+                });
+                if let Some(s) = seed {
+                    ui.horizontal(|ui| {
+                        ui.label("Seed");
+                        DragValue::new(s).speed(10).ui(ui);
+                        if ui.button("Random Seed").clicked() {
+                            *s = rand::random();
+                        }
+                    });
+                }
+                Slider::new(strength, 0..=100).text("Noise Strength").ui(ui);
             }
             Self::Sharpen | Self::BoxBlur => {}
         }
@@ -114,6 +139,19 @@ impl ImageFilter {
                     let g = (g * 255.) as u8;
                     let b = (b * 255.) as u8;
                     img.put_pixel(x, y, Rgba([r, g, b, a]));
+                }
+                img
+            }
+            Self::Noise { strength, seed } => {
+                let mut img = img;
+                let mut random =
+                    rand_chacha::ChaCha20Rng::seed_from_u64(seed.unwrap_or(rand::random()));
+                let percent = *strength as f32 / 100.;
+                for (x, y, col) in img.clone().pixels() {
+                    let rnoise = random.random_range(0.0..=1.0);
+                    let noise = 1.0 - (rnoise * percent);
+                    let col = col.map_without_alpha(|c| (((c as f32 / 255.) * noise) * 255.) as u8);
+                    img.put_pixel(x, y, col);
                 }
                 img
             }
