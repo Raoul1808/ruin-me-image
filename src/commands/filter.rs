@@ -10,20 +10,35 @@ use image::{
 pub enum ImageFilter {
     JpegCompression { quality: u8 },
     Brightness { percentage: u8 },
+    Sharpen,
+    BoxBlur,
+    GaussianBlur { sigma: f32 },
 }
 
 impl ImageFilter {
     pub const DEFAULTS: &[ImageFilter] = &[
         Self::JpegCompression { quality: 80 },
         Self::Brightness { percentage: 100 },
+        Self::Sharpen,
+        Self::BoxBlur,
+        Self::GaussianBlur { sigma: 2. },
     ];
 
-    pub const NAMES: &[&str] = &["JPEG Compression", "Brightness"];
+    pub const NAMES: &[&str] = &[
+        "JPEG Compression",
+        "Brightness",
+        "Sharpen",
+        "Box Blur",
+        "Gaussian Blur",
+    ];
 
     pub fn name(&self) -> &str {
         match self {
             Self::JpegCompression { .. } => Self::NAMES[0],
             Self::Brightness { .. } => Self::NAMES[1],
+            Self::Sharpen => Self::NAMES[2],
+            Self::BoxBlur => Self::NAMES[3],
+            Self::GaussianBlur { .. } => Self::NAMES[4],
         }
     }
 
@@ -37,6 +52,10 @@ impl ImageFilter {
                     .text("Brightness (%)")
                     .ui(ui);
             }
+            Self::GaussianBlur { sigma } => {
+                Slider::new(sigma, 1.0..=5.0).text("Blur Variance").ui(ui);
+            }
+            Self::Sharpen | Self::BoxBlur => {}
         }
     }
 
@@ -64,6 +83,12 @@ impl ImageFilter {
                 }
                 img
             }
+            Self::Sharpen => img.filter3x3(&[0., -1., 0., -1., 5., -1., 0., -1., 0.]),
+            Self::BoxBlur => {
+                let n = 1. / 9.;
+                img.filter3x3(&[n, n, n, n, n, n, n, n, n])
+            }
+            Self::GaussianBlur { sigma } => img.blur(*sigma),
         }
     }
 }
