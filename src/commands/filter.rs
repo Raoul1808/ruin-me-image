@@ -103,7 +103,7 @@ impl ImageFilter {
             Self::JpegCompression { quality } => {
                 let mut buf = BufWriter::new(Vec::new());
                 let encoder = JpegEncoder::new_with_quality(&mut buf, *quality);
-                img.write_with_encoder(encoder).unwrap();
+                img.to_rgb8().write_with_encoder(encoder).unwrap();
                 let bytes = buf.into_inner().unwrap();
                 let decoder = JpegDecoder::new(Cursor::new(bytes)).unwrap();
                 DynamicImage::from_decoder(decoder).unwrap()
