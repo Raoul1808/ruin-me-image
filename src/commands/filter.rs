@@ -16,7 +16,7 @@ pub enum ImageFilter {
     Sharpen,
     BoxBlur,
     GaussianBlur { sigma: f32 },
-    Saturate { percentage: u8 },
+    Saturate { percentage: u16 },
 }
 
 impl ImageFilter {
@@ -63,7 +63,7 @@ impl ImageFilter {
                 Slider::new(sigma, 0.0..=5.0).text("Blur Variance").ui(ui);
             }
             Self::Saturate { percentage } => {
-                Slider::new(percentage, 0..=200)
+                Slider::new(percentage, 0..=400)
                     .text("Saturation (%)")
                     .ui(ui);
             }
