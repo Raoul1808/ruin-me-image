@@ -53,7 +53,7 @@ impl ImageFilter {
                     .ui(ui);
             }
             Self::GaussianBlur { sigma } => {
-                Slider::new(sigma, 1.0..=5.0).text("Blur Variance").ui(ui);
+                Slider::new(sigma, 0.0..=5.0).text("Blur Variance").ui(ui);
             }
             Self::Sharpen | Self::BoxBlur => {}
         }
