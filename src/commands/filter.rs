@@ -1,6 +1,9 @@
 use std::io::{BufWriter, Cursor};
 
-use eframe::egui::{Slider, Ui, Widget};
+use eframe::egui::{
+    Slider, Ui, Widget,
+    ecolor::{hsv_from_rgb, rgb_from_hsv},
+};
 use image::{
     DynamicImage, GenericImage, GenericImageView, Rgba,
     codecs::jpeg::{JpegDecoder, JpegEncoder},
@@ -13,6 +16,7 @@ pub enum ImageFilter {
     Sharpen,
     BoxBlur,
     GaussianBlur { sigma: f32 },
+    Saturate { percentage: u8 },
 }
 
 impl ImageFilter {
@@ -22,6 +26,7 @@ impl ImageFilter {
         Self::Sharpen,
         Self::BoxBlur,
         Self::GaussianBlur { sigma: 2. },
+        Self::Saturate { percentage: 100 },
     ];
 
     pub const NAMES: &[&str] = &[
@@ -30,6 +35,7 @@ impl ImageFilter {
         "Sharpen",
         "Box Blur",
         "Gaussian Blur",
+        "Saturate",
     ];
 
     pub fn name(&self) -> &str {
@@ -39,6 +45,7 @@ impl ImageFilter {
             Self::Sharpen => Self::NAMES[2],
             Self::BoxBlur => Self::NAMES[3],
             Self::GaussianBlur { .. } => Self::NAMES[4],
+            Self::Saturate { .. } => Self::NAMES[5],
         }
     }
 
@@ -54,6 +61,11 @@ impl ImageFilter {
             }
             Self::GaussianBlur { sigma } => {
                 Slider::new(sigma, 0.0..=5.0).text("Blur Variance").ui(ui);
+            }
+            Self::Saturate { percentage } => {
+                Slider::new(percentage, 0..=200)
+                    .text("Saturation (%)")
+                    .ui(ui);
             }
             Self::Sharpen | Self::BoxBlur => {}
         }
@@ -89,6 +101,22 @@ impl ImageFilter {
                 img.filter3x3(&[n, n, n, n, n, n, n, n, n])
             }
             Self::GaussianBlur { sigma } => img.blur(*sigma),
+            Self::Saturate { percentage } => {
+                let mut img = img;
+                let percent = *percentage as f32 / 100.;
+                for (x, y, col) in img.clone().pixels() {
+                    let [r, g, b, a] = col.0;
+                    let (h, s, v) =
+                        hsv_from_rgb([r as f32 / 255., g as f32 / 255., b as f32 / 255.]);
+                    let s = (s * percent).clamp(0.0, 1.0);
+                    let [r, g, b] = rgb_from_hsv((h, s, v));
+                    let r = (r * 255.) as u8;
+                    let g = (g * 255.) as u8;
+                    let b = (b * 255.) as u8;
+                    img.put_pixel(x, y, Rgba([r, g, b, a]));
+                }
+                img
+            }
         }
     }
 }
