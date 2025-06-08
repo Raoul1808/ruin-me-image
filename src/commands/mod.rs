@@ -1,4 +1,4 @@
-use eframe::egui::{ComboBox, Ui};
+use eframe::egui::{Button, ComboBox, Ui};
 use filter::ImageFilter;
 use image::DynamicImage;
 
@@ -35,17 +35,33 @@ impl CommandQueue {
             }
         });
         let mut delete = vec![];
+        let mut to_swap = None;
+        let len = self.queue.len();
         for (i, filter) in self.queue.iter_mut().enumerate() {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut filter.enabled, "");
+                let top = i == 0;
+                if ui.add_enabled(!top, Button::new("⬆")).clicked() {
+                    to_swap = Some((i, i - 1));
+                }
                 if ui.button("🗑").clicked() {
                     delete.push(i);
+                }
+                let bottom = i >= len - 1;
+                if ui.add_enabled(!bottom, Button::new("⬇")).clicked() {
+                    to_swap = Some((i, i + 1));
                 }
                 ui.label(format!("{}. {}", i + 1, filter.filter.name()))
             });
             ui.indent("wawa", |ui| {
                 ui.add_enabled_ui(filter.enabled, |ui| filter.filter.ui(ui));
             });
+        }
+        if let Some((i1, i2)) = to_swap {
+            let range = 0..self.queue.len();
+            if i1 != i2 && range.contains(&i1) && range.contains(&i2) {
+                self.queue.swap(i1, i2);
+            }
         }
         for i in delete.into_iter().rev() {
             self.queue.remove(i);
