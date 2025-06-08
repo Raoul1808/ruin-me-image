@@ -1,0 +1,37 @@
+name: Build Release
+
+on:
+  workflow_dispatch:
+  create:
+    tags:
+      - '*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish-linux:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build release
+      run: cargo build --release
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ruin-me-image
+        path: target/release/ruin-me-image
+
+  publish-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --release
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ruin-me-image.exe
+        path: target/release/ruin-me-image.exe
