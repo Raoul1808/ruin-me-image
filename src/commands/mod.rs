@@ -1,4 +1,4 @@
-use eframe::egui::{ComboBox, Id, Ui, collapsing_header::CollapsingState};
+use eframe::egui::{ComboBox, Ui};
 use filter::ImageFilter;
 use image::DynamicImage;
 
@@ -36,19 +36,16 @@ impl CommandQueue {
         });
         let mut delete = vec![];
         for (i, filter) in self.queue.iter_mut().enumerate() {
-            let id = Id::new(format!("Collapsing{}{}", filter.filter.name(), i));
-            let state = CollapsingState::load_with_default_open(ui.ctx(), id, false);
-            state
-                .show_header(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut filter.enabled, "");
-                        if ui.button("🗑").clicked() {
-                            delete.push(i);
-                        }
-                        ui.label(format!("{}. {}", i + 1, filter.filter.name()))
-                    });
-                })
-                .body(|ui| ui.add_enabled_ui(filter.enabled, |ui| filter.filter.ui(ui)));
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut filter.enabled, "");
+                if ui.button("🗑").clicked() {
+                    delete.push(i);
+                }
+                ui.label(format!("{}. {}", i + 1, filter.filter.name()))
+            });
+            ui.indent("wawa", |ui| {
+                ui.add_enabled_ui(filter.enabled, |ui| filter.filter.ui(ui));
+            });
         }
         for i in delete.into_iter().rev() {
             self.queue.remove(i);
