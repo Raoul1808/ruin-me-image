@@ -1,7 +1,7 @@
 use std::io::{BufWriter, Cursor};
 
 use eframe::egui::{
-    DragValue, Slider, Ui, Widget,
+    DragValue, RadioButton, Slider, Ui, Widget,
     ecolor::{hsv_from_rgb, rgb_from_hsv},
 };
 use image::{
@@ -10,6 +10,12 @@ use image::{
 };
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ResizeOption {
+    Pixels(u32, u32),
+    Percentage(f32, f32),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ImageFilter {
@@ -20,6 +26,7 @@ pub enum ImageFilter {
     GaussianBlur { sigma: f32 },
     Saturate { percentage: u16 },
     Noise { strength: u8, seed: Option<u64> },
+    Resize { size: ResizeOption },
 }
 
 impl ImageFilter {
@@ -34,6 +41,9 @@ impl ImageFilter {
             strength: 10,
             seed: None,
         },
+        Self::Resize {
+            size: ResizeOption::Percentage(1.0, 1.0),
+        },
     ];
 
     pub const NAMES: &[&str] = &[
@@ -44,6 +54,7 @@ impl ImageFilter {
         "Gaussian Blur",
         "Saturate",
         "Noise",
+        "Resize",
     ];
 
     pub fn name(&self) -> &str {
@@ -55,6 +66,7 @@ impl ImageFilter {
             Self::GaussianBlur { .. } => Self::NAMES[4],
             Self::Saturate { .. } => Self::NAMES[5],
             Self::Noise { .. } => Self::NAMES[6],
+            Self::Resize { .. } => Self::NAMES[7],
         }
     }
 
@@ -92,6 +104,50 @@ impl ImageFilter {
                     });
                 }
                 Slider::new(strength, 0..=100).text("Noise Strength").ui(ui);
+            }
+            Self::Resize { size } => {
+                ui.horizontal(|ui| {
+                    if ui
+                        .add(RadioButton::new(
+                            matches!(size, ResizeOption::Pixels(_, _)),
+                            "Pixels",
+                        ))
+                        .clicked()
+                    {
+                        *size = ResizeOption::Pixels(128, 128);
+                    }
+                    if ui
+                        .add(RadioButton::new(
+                            matches!(size, ResizeOption::Percentage(_, _)),
+                            "Factor",
+                        ))
+                        .clicked()
+                    {
+                        *size = ResizeOption::Percentage(1.0, 1.0);
+                    }
+                });
+                match size {
+                    ResizeOption::Pixels(width, height) => {
+                        ui.horizontal(|ui| {
+                            DragValue::new(width).suffix("px").ui(ui);
+                            ui.label("Width");
+                        });
+                        ui.horizontal(|ui| {
+                            DragValue::new(height).suffix("px").ui(ui);
+                            ui.label("Height");
+                        });
+                    }
+                    ResizeOption::Percentage(width, height) => {
+                        ui.horizontal(|ui| {
+                            DragValue::new(width).speed(0.01).range(0.0..=10.0).ui(ui);
+                            ui.label("Width factor");
+                        });
+                        ui.horizontal(|ui| {
+                            DragValue::new(height).speed(0.01).range(0.0..=10.0).ui(ui);
+                            ui.label("Height factor");
+                        });
+                    }
+                }
             }
             Self::Sharpen | Self::BoxBlur => {}
         }
@@ -155,6 +211,17 @@ impl ImageFilter {
                     img.put_pixel(x, y, col);
                 }
                 img
+            }
+            Self::Resize { size } => {
+                let (width, height) = match size {
+                    ResizeOption::Pixels(w, h) => (*w, *h),
+                    ResizeOption::Percentage(w, h) => {
+                        let w = (img.width() as f32 * w) as u32;
+                        let h = (img.height() as f32 * h) as u32;
+                        (w, h)
+                    }
+                };
+                img.resize_exact(width, height, image::imageops::FilterType::Nearest)
             }
         }
     }
