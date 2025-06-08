@@ -1,10 +1,11 @@
 use eframe::egui::{Button, ComboBox, Ui};
 use filter::ImageFilter;
 use image::DynamicImage;
+use serde::{Deserialize, Serialize};
 
 mod filter;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct FilterCommand {
     enabled: bool,
     filter: ImageFilter,
@@ -84,5 +85,14 @@ impl CommandQueue {
 
     pub fn len(&self) -> usize {
         self.queue.len()
+    }
+
+    pub fn serialize(&self) -> ron::Result<String> {
+        ron::to_string(&self.queue)
+    }
+
+    pub fn deserialize(&mut self, str: &str) -> ron::Result<()> {
+        self.queue = ron::from_str(str)?;
+        Ok(())
     }
 }

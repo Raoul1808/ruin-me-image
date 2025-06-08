@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use eframe::{
     App,
@@ -17,6 +17,34 @@ pub struct Application {
     base_img: Option<DynamicImage>,
     img: ImageLoadState,
     queue: CommandQueue,
+}
+
+type BoxResult<T> = Result<T, Box<dyn std::error::Error>>;
+
+fn serialize_to_file(queue: &CommandQueue) -> BoxResult<()> {
+    let path = rfd::FileDialog::new()
+        .set_title("Select saving location")
+        .save_file();
+    let path = match path {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+    let queue = queue.serialize()?;
+    fs::write(path, queue)?;
+    Ok(())
+}
+
+fn deserialize_from_file(queue: &mut CommandQueue) -> BoxResult<()> {
+    let path = rfd::FileDialog::new()
+        .set_title("Select queue file")
+        .pick_file();
+    let path = match path {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+    let contents = fs::read_to_string(path)?;
+    queue.deserialize(&contents)?;
+    Ok(())
 }
 
 impl Application {
@@ -84,6 +112,33 @@ impl Application {
         });
         ui.separator();
         if self.path.is_some() {
+            ui.horizontal(|ui| {
+                if ui.button("Load Queue").clicked() {
+                    match deserialize_from_file(&mut self.queue) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            rfd::MessageDialog::new()
+                                .set_title("Queue loading error")
+                                .set_level(rfd::MessageLevel::Error)
+                                .set_description(format!("Failed to load queue from file: {}", e))
+                                .show();
+                        }
+                    }
+                }
+                if ui.button("Export Queue").clicked() {
+                    match serialize_to_file(&self.queue) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            rfd::MessageDialog::new()
+                                .set_title("Queue saving error")
+                                .set_level(rfd::MessageLevel::Error)
+                                .set_description(format!("Failed to save queue to file: {}", e))
+                                .show();
+                        }
+                    }
+                }
+            });
+            ui.separator();
             self.queue.ui(ui);
             ui.separator();
             let mut render_request = false;

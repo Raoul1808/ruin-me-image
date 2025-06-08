@@ -9,8 +9,9 @@ use image::{
     codecs::jpeg::{JpegDecoder, JpegEncoder},
 };
 use rand::{Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ImageFilter {
     JpegCompression { quality: u8 },
     Brightness { percentage: u8 },
