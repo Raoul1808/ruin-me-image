@@ -85,6 +85,7 @@ impl Application {
         ui.separator();
         if self.path.is_some() {
             self.queue.ui(ui);
+            ui.separator();
             let mut render_request = false;
             match &self.img {
                 ImageLoadState::None | ImageLoadState::Loading | ImageLoadState::Rendering => {

@@ -34,6 +34,7 @@ impl CommandQueue {
                 });
             }
         });
+        ui.separator();
         let mut delete = vec![];
         let mut to_swap = None;
         let len = self.queue.len();
@@ -65,6 +66,9 @@ impl CommandQueue {
         }
         for i in delete.into_iter().rev() {
             self.queue.remove(i);
+        }
+        if self.queue.is_empty() {
+            ui.small("There is nothing here.");
         }
     }
 
