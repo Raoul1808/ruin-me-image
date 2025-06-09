@@ -4,7 +4,7 @@ use eframe::{
     App,
     egui::{
         self, Button, CentralPanel, ColorImage, Image, SidePanel, TextureHandle, TextureOptions,
-        Ui, Widget, load::SizedTexture,
+        Ui, Widget, load::SizedTexture, vec2,
     },
 };
 use image::{DynamicImage, EncodableLayout};
@@ -18,6 +18,8 @@ pub struct Application {
     img: ImageLoadState,
     queue: CommandQueue,
 }
+
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 type BoxResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -139,7 +141,16 @@ impl Application {
                 }
             });
             ui.separator();
-            self.queue.ui(ui);
+            let available_width = ui.available_width();
+            let available_height = {
+                let available = ui.available_height();
+                let spacing = ui.spacing();
+                available - spacing.item_spacing.y * 9. - spacing.interact_size.y
+            };
+            ui.allocate_ui(vec2(available_width, available_height), |ui| {
+                self.queue.ui(ui);
+                ui.add_space(ui.available_height());
+            });
             ui.separator();
             let mut render_request = false;
             match &self.img {
@@ -190,7 +201,19 @@ impl Application {
             if render_request {
                 self.img = ImageLoadState::Rendering;
             }
+        } else {
+            let available_width = ui.available_width();
+            let available_height = {
+                let available = ui.available_height();
+                let spacing = ui.spacing();
+                available - spacing.item_spacing.y * 5.
+            };
+            ui.allocate_ui(vec2(available_width, available_height), |ui| {
+                self.queue.ui(ui);
+                ui.add_space(ui.available_height());
+            });
         }
+        ui.small(format!("ruin-me-image v{}", APP_VERSION));
     }
 }
 
