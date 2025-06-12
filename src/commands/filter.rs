@@ -21,7 +21,7 @@ pub enum ResizeOption {
 pub enum ImageFilter {
     JpegCompression { quality: u8 },
     Brightness { percentage: u8 },
-    Sharpen,
+    Sharpen { strength: u8 },
     BoxBlur,
     GaussianBlur { sigma: f32 },
     Saturate { percentage: u16 },
@@ -34,7 +34,7 @@ impl ImageFilter {
     pub const DEFAULTS: &[ImageFilter] = &[
         Self::JpegCompression { quality: 80 },
         Self::Brightness { percentage: 100 },
-        Self::Sharpen,
+        Self::Sharpen { strength: 50 },
         Self::BoxBlur,
         Self::GaussianBlur { sigma: 2. },
         Self::Saturate { percentage: 100 },
@@ -64,7 +64,7 @@ impl ImageFilter {
         match self {
             Self::JpegCompression { .. } => Self::NAMES[0],
             Self::Brightness { .. } => Self::NAMES[1],
-            Self::Sharpen => Self::NAMES[2],
+            Self::Sharpen { .. } => Self::NAMES[2],
             Self::BoxBlur => Self::NAMES[3],
             Self::GaussianBlur { .. } => Self::NAMES[4],
             Self::Saturate { .. } => Self::NAMES[5],
@@ -83,6 +83,9 @@ impl ImageFilter {
                 Slider::new(percentage, 0..=200)
                     .text("Brightness (%)")
                     .ui(ui);
+            }
+            Self::Sharpen { strength } => {
+                Slider::new(strength, 0..=200).text("Strength (%)").ui(ui);
             }
             Self::GaussianBlur { sigma } => {
                 Slider::new(sigma, 0.0..=5.0).text("Blur Variance").ui(ui);
@@ -153,7 +156,7 @@ impl ImageFilter {
                     }
                 }
             }
-            Self::Sharpen | Self::BoxBlur | Self::Invert => {}
+            Self::BoxBlur | Self::Invert => {}
         }
     }
 
@@ -181,7 +184,12 @@ impl ImageFilter {
                 }
                 img
             }
-            Self::Sharpen => img.filter3x3(&[0., -1., 0., -1., 5., -1., 0., -1., 0.]),
+            Self::Sharpen { strength } => {
+                let strength = *strength as f32 / 100.;
+                let edge = -1. * strength;
+                let center = 4. * strength + 1.;
+                img.filter3x3(&[0., edge, 0., edge, center, edge, 0., edge, 0.])
+            }
             Self::BoxBlur => {
                 let n = 1. / 9.;
                 img.filter3x3(&[n, n, n, n, n, n, n, n, n])
