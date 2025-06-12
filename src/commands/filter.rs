@@ -27,6 +27,7 @@ pub enum ImageFilter {
     Saturate { percentage: u16 },
     Noise { strength: u8, seed: Option<u64> },
     Resize { size: ResizeOption },
+    Invert,
 }
 
 impl ImageFilter {
@@ -44,6 +45,7 @@ impl ImageFilter {
         Self::Resize {
             size: ResizeOption::Percentage(1.0, 1.0),
         },
+        Self::Invert,
     ];
 
     pub const NAMES: &[&str] = &[
@@ -55,6 +57,7 @@ impl ImageFilter {
         "Saturate",
         "Noise",
         "Resize",
+        "Invert",
     ];
 
     pub fn name(&self) -> &str {
@@ -67,6 +70,7 @@ impl ImageFilter {
             Self::Saturate { .. } => Self::NAMES[5],
             Self::Noise { .. } => Self::NAMES[6],
             Self::Resize { .. } => Self::NAMES[7],
+            Self::Invert => Self::NAMES[8],
         }
     }
 
@@ -149,7 +153,7 @@ impl ImageFilter {
                     }
                 }
             }
-            Self::Sharpen | Self::BoxBlur => {}
+            Self::Sharpen | Self::BoxBlur | Self::Invert => {}
         }
     }
 
@@ -222,6 +226,11 @@ impl ImageFilter {
                     }
                 };
                 img.resize_exact(width, height, image::imageops::FilterType::Nearest)
+            }
+            Self::Invert => {
+                let mut img = img;
+                img.invert();
+                img
             }
         }
     }
