@@ -161,7 +161,6 @@ impl ImageFilter {
     }
 
     // TODO: error management
-    // FIXME: This is not how you saturate an image
     pub fn apply(&self, img: DynamicImage) -> DynamicImage {
         match self {
             Self::JpegCompression { quality } => {
