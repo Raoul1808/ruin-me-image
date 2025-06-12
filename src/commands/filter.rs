@@ -11,7 +11,7 @@ use image::{
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResizeOption {
     Pixels(u32, u32),
     Percentage(f32, f32),
