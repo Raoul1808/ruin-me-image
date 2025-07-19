@@ -6,9 +6,19 @@ use serde::{Deserialize, Serialize};
 mod filter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct FilterCommand {
+pub struct FilterCommand {
     enabled: bool,
     filter: ImageFilter,
+}
+
+impl FilterCommand {
+    pub fn execute(self, img: DynamicImage) -> DynamicImage {
+        if self.enabled {
+            self.filter.apply(img)
+        } else {
+            img
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -80,14 +90,8 @@ impl CommandQueue {
         }
     }
 
-    pub fn execute_clear(&mut self, img: DynamicImage) -> DynamicImage {
-        let mut img = img;
-        for filter in self.queue.drain(..) {
-            if filter.enabled {
-                img = filter.filter.apply(img);
-            }
-        }
-        img
+    pub fn into_iter(self) -> std::vec::IntoIter<FilterCommand> {
+        self.queue.into_iter()
     }
 
     pub fn len(&self) -> usize {

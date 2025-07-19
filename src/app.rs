@@ -3,13 +3,16 @@ use std::{fs, path::PathBuf};
 use eframe::{
     App,
     egui::{
-        self, Button, CentralPanel, ColorImage, Image, SidePanel, TextureHandle, TextureOptions,
-        Ui, Widget, load::SizedTexture, vec2,
+        self, Button, CentralPanel, ColorImage, Image, ProgressBar, SidePanel, TextureHandle,
+        TextureOptions, Ui, Widget, load::SizedTexture, vec2,
     },
 };
 use image::{DynamicImage, EncodableLayout};
 
-use crate::{commands::CommandQueue, worker::ImageWorker};
+use crate::{
+    commands::CommandQueue,
+    worker::{ImageWorker, WorkerResult},
+};
 
 pub struct Application {
     worker: ImageWorker,
@@ -63,7 +66,7 @@ impl Application {
     fn update_image_state(&mut self, ctx: &egui::Context) {
         if let Some(res) = self.worker.try_recv() {
             match res {
-                Ok(img) => {
+                WorkerResult::Finished(img) => {
                     if matches!(self.img, ImageLoadState::Loading) {
                         self.base_img = Some(img.clone());
                     }
@@ -84,7 +87,12 @@ impl Application {
                     let tex = SizedTexture::from_handle(&handle);
                     self.img = ImageLoadState::Loaded { handle, tex, img }
                 }
-                Err(e) => {
+                WorkerResult::Progress(i) => {
+                    if let ImageLoadState::Rendering { progress, .. } = &mut self.img {
+                        *progress = i;
+                    }
+                }
+                WorkerResult::Error(e) => {
                     rfd::MessageDialog::new()
                         .set_title("Image error")
                         .set_level(rfd::MessageLevel::Error)
@@ -154,7 +162,9 @@ impl Application {
             ui.separator();
             let mut render_request = false;
             match &self.img {
-                ImageLoadState::None | ImageLoadState::Loading | ImageLoadState::Rendering => {
+                ImageLoadState::None
+                | ImageLoadState::Loading
+                | ImageLoadState::Rendering { .. } => {
                     ui.horizontal(|ui| {
                         ui.add_enabled(false, Button::new("Render"));
                         ui.add_enabled(false, Button::new("Save current render"));
@@ -199,7 +209,10 @@ impl Application {
                 }
             }
             if render_request {
-                self.img = ImageLoadState::Rendering;
+                self.img = ImageLoadState::Rendering {
+                    progress: 0,
+                    total: self.queue.len(),
+                };
             }
         } else {
             let available_width = ui.available_width();
@@ -220,7 +233,10 @@ impl Application {
 enum ImageLoadState {
     None,
     Loading,
-    Rendering,
+    Rendering {
+        progress: usize,
+        total: usize,
+    },
     Loaded {
         #[allow(dead_code)]
         handle: TextureHandle,
@@ -246,11 +262,16 @@ impl App for Application {
                         ui.label("Loading image...");
                     });
                 }
-                ImageLoadState::Rendering => {
+                ImageLoadState::Rendering { progress, total } => {
                     ui.horizontal(|ui| {
                         ui.spinner();
                         ui.label("Rendering image...");
                     });
+                    let progress_percent = *progress as f32 / *total as f32;
+                    ProgressBar::new(progress_percent)
+                        .animate(true)
+                        .text(format!("{progress} / {total} filters processed"))
+                        .ui(ui);
                 }
                 ImageLoadState::Loaded { tex, .. } => {
                     ui.label("Image preview");

@@ -12,7 +12,7 @@ use crate::commands::CommandQueue;
 struct Worker {
     handle: JoinHandle<()>,
     sender: Sender<WorkCommand>,
-    receiver: Receiver<Result<DynamicImage, WorkerError>>,
+    receiver: Receiver<WorkerResult>,
 }
 
 pub struct ImageWorker {
@@ -29,10 +29,10 @@ impl Drop for ImageWorker {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum WorkerError {
-    #[error("an error occurred while loading image: {0}")]
-    ImageError(ImageError),
+pub enum WorkerResult {
+    Progress(usize),
+    Finished(DynamicImage),
+    Error(ImageError),
 }
 
 enum WorkCommand {
@@ -43,20 +43,24 @@ enum WorkCommand {
     },
 }
 
-fn image_worker(
-    sender: Sender<Result<DynamicImage, WorkerError>>,
-    receiver: Receiver<WorkCommand>,
-) {
+fn image_worker(sender: Sender<WorkerResult>, receiver: Receiver<WorkCommand>) {
     loop {
         match receiver.recv() {
             Ok(c) => match c {
                 WorkCommand::LoadImage(path) => {
-                    let img = image::open(path).map_err(WorkerError::ImageError);
-                    sender.send(img).unwrap();
+                    let res = match image::open(path) {
+                        Ok(img) => WorkerResult::Finished(img),
+                        Err(e) => WorkerResult::Error(e),
+                    };
+                    sender.send(res).unwrap();
                 }
-                WorkCommand::Render { mut queue, img } => {
-                    let img = queue.execute_clear(img);
-                    sender.send(Ok(img)).unwrap();
+                WorkCommand::Render { queue, img } => {
+                    let mut img = img;
+                    for (i, command) in queue.into_iter().enumerate() {
+                        img = command.execute(img);
+                        sender.send(WorkerResult::Progress(i + 1)).unwrap();
+                    }
+                    sender.send(WorkerResult::Finished(img)).unwrap();
                 }
             },
             Err(_) => {
@@ -102,7 +106,7 @@ impl ImageWorker {
             .expect("worker thread unexpectedly down!!");
     }
 
-    pub fn try_recv(&self) -> Option<Result<DynamicImage, WorkerError>> {
+    pub fn try_recv(&self) -> Option<WorkerResult> {
         match self.worker().receiver.try_recv() {
             Ok(res) => Some(res),
             Err(TryRecvError::Empty) => None,
