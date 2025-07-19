@@ -185,7 +185,7 @@ impl ImageFilter {
             }
             Self::Sharpen { strength } => {
                 let strength = *strength as f32 / 100.;
-                let edge = -1. * strength;
+                let edge = -strength;
                 let center = 4. * strength + 1.;
                 img.filter3x3(&[0., edge, 0., edge, center, edge, 0., edge, 0.])
             }

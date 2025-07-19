@@ -96,7 +96,7 @@ impl Application {
                     rfd::MessageDialog::new()
                         .set_title("Image error")
                         .set_level(rfd::MessageLevel::Error)
-                        .set_description(format!("{}", e));
+                        .set_description(format!("{e}"));
                 }
             }
         }
@@ -130,7 +130,7 @@ impl Application {
                             rfd::MessageDialog::new()
                                 .set_title("Queue loading error")
                                 .set_level(rfd::MessageLevel::Error)
-                                .set_description(format!("Failed to load queue from file: {}", e))
+                                .set_description(format!("Failed to load queue from file: {e}"))
                                 .show();
                         }
                     }
@@ -142,7 +142,7 @@ impl Application {
                             rfd::MessageDialog::new()
                                 .set_title("Queue saving error")
                                 .set_level(rfd::MessageLevel::Error)
-                                .set_description(format!("Failed to save queue to file: {}", e))
+                                .set_description(format!("Failed to save queue to file: {e}"))
                                 .show();
                         }
                     }
@@ -199,7 +199,7 @@ impl Application {
                                         rfd::MessageDialog::new()
                                             .set_title("Image error")
                                             .set_level(rfd::MessageLevel::Error)
-                                            .set_description(format!("Failed to save image: {}", e))
+                                            .set_description(format!("Failed to save image: {e}"))
                                             .show();
                                     }
                                 }
@@ -226,7 +226,7 @@ impl Application {
                 ui.add_space(ui.available_height());
             });
         }
-        ui.small(format!("ruin-me-image v{}", APP_VERSION));
+        ui.small(format!("ruin-me-image v{APP_VERSION}"));
     }
 }
 

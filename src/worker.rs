@@ -5,7 +5,6 @@ use std::{
 };
 
 use image::{DynamicImage, ImageError};
-use thiserror::Error;
 
 use crate::commands::CommandQueue;
 
